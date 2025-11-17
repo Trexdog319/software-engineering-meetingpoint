@@ -1,0 +1,76 @@
+PCAP Analyzer - Project Documentation
+======================================
+
+Project: Network Packet Capture File Analyzer
+Created: November 16, 2025
+
+OVERVIEW
+--------
+This application analyzes PCAP (Packet Capture) files and provides detailed information about 
+network packets including addresses, protocols, packet sizes, IP versions, and payload data.
+
+FEATURES
+--------
+- Parse PCAP and PCAPNG files
+- Display packet information in organized table format
+- Show detailed packet analysis
+- Calculate and display statistics
+- Export data to JSON, CSV, and HTML formats
+- Automated logging of analysis operations
+
+STRUCTURE
+---------
+src/
+  - PcapAnalyzer.Core: Business logic and data models
+  - PcapAnalyzer.Data: File I/O and logging
+  - PcapAnalyzer.UI: Windows Forms user interface
+
+tests/
+  - PcapAnalyzer.Core.Tests: Unit tests
+
+docs/
+  - DesignDocument.md: Architecture and design details
+  - UserGuide.md: End-user documentation
+  - Logs/: Analysis log files directory
+
+TECHNOLOGIES
+------------
+- .NET 8.0
+- Windows Forms
+- SharpPcap 6.3.1 (PCAP parsing)
+- PacketDotNet 1.4.8 (Packet analysis)
+- xUnit (Testing)
+
+BUILD INSTRUCTIONS
+------------------
+1. Open PcapAnalyzer.sln in Visual Studio or VS Code
+2. Restore NuGet packages
+3. Build solution (Ctrl+Shift+B)
+4. Run PcapAnalyzer.UI project
+
+RUN TESTS
+---------
+From command line:
+  cd tests/PcapAnalyzer.Core.Tests
+  dotnet test
+
+USAGE
+-----
+1. Launch the application
+2. File → Open PCAP to select a capture file
+3. View packets in the main grid
+4. Select a packet to see details
+5. View statistics in the right panel
+6. Export results using File → Export menu
+
+LOGS
+----
+Analysis logs are stored in docs/Logs/ directory with timestamps.
+Log files include analysis metadata and any warnings/errors.
+
+ADDITIONAL DOCUMENTATION
+------------------------
+See DesignDocument.md for technical architecture details
+See UserGuide.md for complete user instructions
+
+For questions or issues, refer to the project repository or contact the development team.
