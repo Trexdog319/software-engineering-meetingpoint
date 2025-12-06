@@ -59,7 +59,8 @@ namespace BabyWireShark
                         kvp.Value.sourceAddress,
                         kvp.Value.destAddress,
                         kvp.Value.protocol,
-                        kvp.Value.packetSize
+                        kvp.Value.packetSize,
+                        kvp.Value.datatransformed
                     );
                 }
                 

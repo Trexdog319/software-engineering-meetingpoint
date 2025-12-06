@@ -29,6 +29,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Collections.Specialized;
 using System.Buffers.Binary;
+using System.Text;
 
 
 public class Packet
@@ -42,6 +43,7 @@ public class Packet
     public string timeMicroseconds { get; set; }
     public string packetSize { get; set; }
     public byte[] data { get; set; }
+    public string datatransformed { get; set; }
 }
 
 public class Wireshark
@@ -95,7 +97,7 @@ public class Wireshark
             {
                 Console.WriteLine("Packet is IPv4");
 
-                packet.etherType = etherType;
+                packet.etherType = "etherType";
                 ipv4Decode(readIn, packet);
 
                 Console.WriteLine("Source Address: " + packet.sourceAddress);
@@ -126,8 +128,10 @@ public class Wireshark
         byte[] totalLengthBytes = new byte[2];
         readIn.Read(totalLengthBytes, 0, 2);
         ushort totalLength = BinaryPrimitives.ReadUInt16BigEndian(totalLengthBytes);
-        int payloadLength = totalLength - (ihl * 4);
+        //int payloadLength = totalLength - (ihl * 4);
+        int payloadLength = int.Parse(packet.packetSize) - 14 - (ihl * 4);
 
+      
         // Store bytes 4-19 in buffer
         byte[] bufferBytes = new byte[16];
         readIn.Read(bufferBytes, 0, 16);
@@ -136,19 +140,108 @@ public class Wireshark
         uint pSourceAddress = BinaryPrimitives.ReadUInt32BigEndian(bufferBytes.AsSpan(8));
         uint pDestinationAddress = BinaryPrimitives.ReadUInt32BigEndian(bufferBytes.AsSpan(12));
 
-        packet.protocol = pProtocol.ToString("X4");
-        packet.sourceAddress = pSourceAddress.ToString("X4");
-        packet.destAddress = pDestinationAddress.ToString("X4");
+        if (pProtocol == 0x0001) {
+            packet.protocol = "ICMP";
+            ICMPDecode(readIn, packet, payloadLength);
+        }
+        else if (pProtocol == 0x11) {
+            packet.protocol = "UDP";
+            UDPDecode(readIn, packet, payloadLength);
+        }
+        else if (pProtocol == 0x06)
+        {
+            packet.protocol = "TCP";
+            TCPDecode(readIn, packet, payloadLength);
+        }
+
+        //packet.protocol = pProtocol.ToString("X4");
+        //packet.sourceAddress = pSourceAddress.ToString("X4");
+        packet.destAddress = string.Format("{0}.{1}.{2}.{3}",
+        (pDestinationAddress >> 24) & 0xFF,
+        (pDestinationAddress >> 16) & 0xFF,
+        (pDestinationAddress >> 8) & 0xFF,
+        pDestinationAddress & 0xFF);
+
+        packet.sourceAddress = string.Format("{0}.{1}.{2}.{3}",
+        (pSourceAddress >> 24) & 0xFF,
+        (pSourceAddress >> 16) & 0xFF,
+        (pSourceAddress >> 8) & 0xFF,
+        pSourceAddress & 0xFF);
 
         //Console.WriteLine(pProtocol.ToString("X4"));
         //Console.WriteLine(pSourceAddress.ToString("X4"));
         //Console.WriteLine(pDestinationAddress.ToString("X4"));
 
-        // Read data up to end up payloadLength
+        // Read data up to end of payloadLength
+        //byte[] pData = new byte[payloadLength];
+        //readIn.Read(pData, 0, payloadLength);
+
+        //packet.data = pData;
+        //packet.datatransformed = Encoding.UTF8.GetString(pData); 
+    }
+
+    public static void ICMPDecode(FileStream readIn, Packet packet, int payloadLength)
+    {
         byte[] pData = new byte[payloadLength];
         readIn.Read(pData, 0, payloadLength);
 
-        packet.data = pData;
+        byte type = pData[0];
+
+        if (type == 0x00) {
+            packet.datatransformed = "Echo Reply";
+        }
+        else if (type == 0x08)
+        {
+            packet.datatransformed = "Echo Request";
+        }
+        else if (type == 0x03)
+        {
+            packet.datatransformed = "Destination Unreachable";
+        }
+        else
+        {
+            packet.datatransformed = "Unknown";
+        }
+    }
+
+    public static void UDPDecode(FileStream readIn, Packet packet, int payloadLength)
+    {
+        byte[] pData = new byte[payloadLength];
+        readIn.Read(pData, 0, payloadLength);
+
+        ushort sourcePort = (ushort)((pData[0] << 8) | pData[1]);
+        ushort destPort = (ushort)((pData[2] << 8) | pData[3]);
+
+        packet.datatransformed = string.Format("{0} -> {1}", sourcePort, destPort);
+    }
+
+    public static void TCPDecode(FileStream readIn, Packet packet, int payloadLength)
+    {
+        byte[] pData = new byte[payloadLength];
+        readIn.Read(pData, 0, payloadLength);
+
+        ushort sourcePort = (ushort)((pData[0] << 8) | pData[1]);
+        ushort destPort = (ushort)((pData[2] << 8) | pData[3]);
+
+        byte flags = pData[13];
+
+        List<string> activeFlags = new List<string>();
+        if ((flags & (byte)(0x01)) != 0) activeFlags.Add("FIN");
+        if ((flags & 0x02) != 0) activeFlags.Add("SYN");
+        if ((flags & 0x04) != 0) activeFlags.Add("RST");
+        if ((flags & 0x08) != 0) activeFlags.Add("PSH");
+        if ((flags & 0x10) != 0) activeFlags.Add("ACK");
+        if ((flags & 0x20) != 0) activeFlags.Add("URG");
+        if ((flags & 0x40) != 0) activeFlags.Add("ECE");
+        if ((flags & 0x80) != 0) activeFlags.Add("CWR");
+
+        string flagsString = string.Join(", ", activeFlags);
+
+        string portString = string.Format("{0} -> {1}", sourcePort,destPort);
+
+        packet.datatransformed = portString;
+        packet.datatransformed += " ";
+        packet.datatransformed += flagsString;
     }
 
     public static void ppHeaderDecode(byte[] ppHeader, Packet packet)
